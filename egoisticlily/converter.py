@@ -20,22 +20,43 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  SOFTWARE.
 """
+import os
 import csv
+import argparse
 import marisa_trie
 
 
 class Converter:
-    def __init__(self, word_file):
-        keys = []
-        values = []
-        with open(word_file, "r") as f:
+    def __init__(self, model_dir):
+        self.words = []
+        model_path = os.path.abspath(model_dir)
+        with open(model_path + "/words.csv", "r") as f:
             reader = csv.reader(f, delimiter=",")
             for row in reader:
-                keys.append(row[0])
-                values.append((row[1], row[2], row[3]))
-            self.trie = marisa_trie.RecordTrie("<HHH", zip(keys, values))
+                self.words.append(row[0])
 
-    def __call__(self, in_str):
-        pass
+        self.trie = marisa_trie.Trie()
+        self.trie.load(model_path + "/words.marisa")
+
+    def __call__(self, in_text):
+        text = []
+        for s in in_text:
+            text.append(s)
+
+        print(text)
+
+
+def main():
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('-t', nargs='?', help='input json file path', required=True)
+    arg_parser.add_argument('-m', nargs='?', help='output directory name', required=True)
+    args = arg_parser.parse_args()
+
+    converter = Converter(args.m)
+    converter("たしかにでんげんいれた")
+
+
+if __name__ == "__main__":
+    main()
 
 
