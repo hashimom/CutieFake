@@ -24,26 +24,49 @@ import os
 import csv
 import argparse
 import marisa_trie
+import tensorflow as tf
+from egoisticlily.words import Words
 
 
 class Converter:
     def __init__(self, model_dir):
         self.words = []
+        trie_keys = []
+        trie_values = []
         model_path = os.path.abspath(model_dir)
         with open(model_path + "/words.csv", "r") as f:
             reader = csv.reader(f, delimiter=",")
-            for row in reader:
+            for i, row in enumerate(reader):
                 self.words.append(row[0])
+                trie_keys.append(row[1])
+                trie_values.append([i, int(row[2]), int(row[3]), int(row[4])])
 
-        self.trie = marisa_trie.Trie()
-        self.trie.load(model_path + "/words.marisa")
+        self.trie = marisa_trie.RecordTrie("<IIHH", zip(trie_keys, trie_values))
+        self.model = tf.saved_model.load(model_dir + "/dnn/")
+
+        self.word_info = Words()
 
     def __call__(self, in_text):
-        text = []
-        for s in in_text:
-            text.append(s)
+        # nodes build
+        nodes = [[] for i in range(len(in_text))]
+        for i in range(len(in_text)):
+            for prefix in self.trie.prefixes(in_text[i:]):
+                nodes[i+len(prefix)-1].append(prefix)
+        nodes.insert(len(in_text), ["@E@"])
+        nodes.insert(0, ["@S@"])
+        print(nodes)
+        print(self.trie.get("わ"))
 
-        print(text)
+        a = self.score(64539, 10, 24, 15036, 9, 9)
+        print(a)
+
+        # graph build
+        # for i in range(len(in_text)):
+
+    def score(self, w1_vec_id, w1_type1, w1_type2, w2_vec_id, w2_type1, w2_type2):
+        w1_vec = self.word_info(w1_vec_id, w1_type1, w1_type2)
+        w2_vec = self.word_info(w2_vec_id, w2_type1, w2_type2)
+        return self.model.score(w1_vec + w2_vec)
 
 
 def main():
@@ -53,7 +76,7 @@ def main():
     args = arg_parser.parse_args()
 
     converter = Converter(args.m)
-    converter("たしかにでんげんいれた")
+    converter("わたしのなまえはなかのです")
 
 
 if __name__ == "__main__":

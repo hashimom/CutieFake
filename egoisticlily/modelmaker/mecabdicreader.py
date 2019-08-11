@@ -36,11 +36,15 @@ class MecabDicReader:
         holder = WordHolder()
         csv_list = glob.glob(self.in_csv_dir + "/*.csv")
         for csv_file in csv_list:
+            print(csv_file + " open")
             with open(csv_file, "r") as f:
                 reader = csv.reader(f, delimiter=",")
                 for row in reader:
                     holder.regist(row[0], row[9], row[4], row[5])
 
+        holder.regist("@S@", "@S@", "PHASE", "SOP")
+        holder.regist("@E@", "@E@", "PHASE", "EOP")
+        holder.regist("@N@", "@N@", "PHASE", "NONE")
         holder.save(self.out_csv_dir)
 
 
