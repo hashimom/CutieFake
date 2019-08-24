@@ -77,19 +77,19 @@ class Builder:
         return batch_list
 
     def make_batch(self, batch_list, batch_size):
-        batch = np.empty((batch_size, 304), dtype="float")
+        batch = np.empty((batch_size, 320), dtype="float")
         for i, x in enumerate(batch_list):
-            word_id = np.empty((WORD_PHRASE_NUM, 76), dtype="float")
+            word_id = np.empty((WORD_PHRASE_NUM, 80), dtype="float")
             for j in range(WORD_PHRASE_NUM):
                 if not x[j] in self.word_holder.word_list:
                     self.word_holder.regist(x[j], x[j], "未定義語", "その他")
                 word_id[j] = self.word_holder(x[j])
-            batch[i] = word_id.reshape(1, 304)
+            batch[i] = word_id.reshape(1, 320)
         return batch
 
     def update_word_id(self, batch_list, y):
         for i, link in enumerate(batch_list):
-            y_word_ary = np.reshape(y[i], (WORD_PHRASE_NUM, 76))
+            y_word_ary = np.reshape(y[i], (WORD_PHRASE_NUM, 80))
             for j, word in enumerate(link):
                 new_id = 0
                 y_word = y_word_ary[j][:WORD_ID_BIT_NUM]

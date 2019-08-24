@@ -58,7 +58,7 @@ class WordVector(tf.Module):
         self.out_w = tf.Variable(init_w(shape=(hid_dim, in_dim), dtype="float64"))
         self.out_h = tf.Variable(init_h(shape=in_dim, dtype="float64"))
 
-    @tf.function
+    @tf.function(input_signature=(tf.TensorSpec(shape=[None, 320], dtype=tf.float64),))
     def score(self, x_in):
         # encoder
         h = tf.nn.relu(tf.matmul(x_in, self.in_w) + self.in_h)

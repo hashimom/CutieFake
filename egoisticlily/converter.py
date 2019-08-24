@@ -24,6 +24,7 @@ import os
 import csv
 import argparse
 import marisa_trie
+import numpy as np
 import tensorflow as tf
 from egoisticlily.words import Words
 
@@ -37,11 +38,11 @@ class Converter:
         with open(model_path + "/words.csv", "r") as f:
             reader = csv.reader(f, delimiter=",")
             for i, row in enumerate(reader):
-                self.words.append(row[0])
+                self.words.append([row[0], int(row[2]), int(row[3]), int(row[4])])
                 trie_keys.append(row[1])
-                trie_values.append([i, int(row[2]), int(row[3]), int(row[4])])
+                trie_values.append([i])
 
-        self.trie = marisa_trie.RecordTrie("<IIHH", zip(trie_keys, trie_values))
+        self.trie = marisa_trie.RecordTrie("<I", zip(trie_keys, trie_values))
         self.model = tf.saved_model.load(model_dir + "/dnn/")
 
         self.word_info = Words()
@@ -55,23 +56,57 @@ class Converter:
         nodes.insert(len(in_text), ["@E@"])
         nodes.insert(0, ["@S@"])
         print(nodes)
-        print(self.trie.get("わ"))
 
-        a = self.score(64539, 10, 24, 15036, 9, 9)
-        print(a)
+        min_cost = 0
+        fix_str = ""
+        node_min = 0
+        pre_word_id = self.id_list("@S@")[0]
+        for i in range(len(nodes)):
+            # bi-gramは2文字以上から
+            if i == 0:
+                continue
 
-        # graph build
-        # for i in range(len(in_text)):
+            for node_min in nodes[i]:
+                print("node_min: " + node_min)
 
-    def score(self, w1_vec_id, w1_type1, w1_type2, w2_vec_id, w2_type1, w2_type2):
-        w1_vec = self.word_info(w1_vec_id, w1_type1, w1_type2)
-        w2_vec = self.word_info(w2_vec_id, w2_type1, w2_type2)
-        return self.model.score(w1_vec + w2_vec)
+                for same_word in self.id_list(node_min):
+                    same_word_min_cost = 0
+                    # print(str(word_id) + ": " + self.words[word_id][0])
+                    score = self.score(pre_word_id, same_word)
+                    if score < same_word_min_cost or same_word_min_cost == 0:
+                        same_word_min_id = same_word
+                        same_word_min_cost = score
+                        same_word_min_str = self.words[same_word][0]
+
+                    print(same_word_min_str)
+                pre_word_id = same_word_min_id
+
+        # a = self.score("私", "の")
+        # print(a)
+
+    def score(self, word1_id, word2_id):
+        # 係り受け解析部 ※未実装
+        non_id_vec = self.vector(self.id_list("@N@")[0])
+        vec = np.vstack((non_id_vec, non_id_vec))
+
+        vec = np.vstack((vec, self.vector(word1_id)))
+        vec = np.vstack((vec, self.vector(word2_id)))
+        vec = vec.reshape(1, 320)
+        return self.model.score(vec)[0]
+
+    def id_list(self, word):
+        ret = []
+        for word_id in self.trie.get(word):
+            ret.append(word_id[0])
+        return ret
+
+    def vector(self, word_id):
+        id_list = self.words[word_id]
+        return self.word_info(id_list[1], id_list[2], id_list[3])
 
 
 def main():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('-t', nargs='?', help='input json file path', required=True)
     arg_parser.add_argument('-m', nargs='?', help='output directory name', required=True)
     args = arg_parser.parse_args()
 
