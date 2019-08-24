@@ -31,6 +31,7 @@ from egoisticlily.words import Words
 
 class Converter:
     def __init__(self, model_dir):
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
         self.words = []
         trie_keys = []
         trie_values = []
@@ -47,7 +48,14 @@ class Converter:
 
         self.word_info = Words()
 
-    def __call__(self, in_text):
+    def __call__(self, s1, s2):
+        for s1_id in self.id_list(s1):
+            print(self.words[s1_id][0] + " :")
+            for s2_id in self.id_list(s2):
+                score = self.score(s1_id, s2_id)
+                print(" -> " + self.words[s2_id][0] + ": %06f" % score)
+
+    def call_dummy(self, in_text):
         # nodes build
         nodes = [[] for i in range(len(in_text))]
         for i in range(len(in_text)):
@@ -108,10 +116,12 @@ class Converter:
 def main():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-m', nargs='?', help='output directory name', required=True)
+    arg_parser.add_argument('-s1', nargs='?', help='pre', required=True)
+    arg_parser.add_argument('-s2', nargs='?', help='post', required=True)
     args = arg_parser.parse_args()
 
     converter = Converter(args.m)
-    converter("わたしのなまえはなかのです")
+    converter(args.s1, args.s2)
 
 
 if __name__ == "__main__":
