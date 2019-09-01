@@ -48,49 +48,48 @@ class Converter:
 
         self.word_info = Words()
 
-    def __call__(self, s1, s2):
-        for s1_id in self.id_list(s1):
-            print(self.words[s1_id][0] + " :")
-            for s2_id in self.id_list(s2):
-                score = self.score(s1_id, s2_id)
-                print(" -> " + self.words[s2_id][0] + ": %06f" % score)
+    def __call__(self, in_text):
+        init_id = self.id_list("@S@")[0]
 
-    def call_dummy(self, in_text):
-        # nodes build
-        nodes = [[] for i in range(len(in_text))]
+        # words_set build
+        words_set = [[] for i in range(len(in_text))]
         for i in range(len(in_text)):
             for prefix in self.trie.prefixes(in_text[i:]):
-                nodes[i+len(prefix)-1].append(prefix)
-        nodes.insert(len(in_text), ["@E@"])
-        nodes.insert(0, ["@S@"])
-        print(nodes)
+                words_set[i+len(prefix)-1].append(prefix)
 
-        min_cost = 0
-        fix_str = ""
-        node_min = 0
-        pre_word_id = self.id_list("@S@")[0]
-        for i in range(len(nodes)):
-            # bi-gramは2文字以上から
-            if i == 0:
-                continue
+        # node build
+        min_node = []
+        for i in range(len(words_set)):
+            min_node.append({"cost": 0., "id": init_id, "con_idx": 0})
 
-            for node_min in nodes[i]:
-                print("node_min: " + node_min)
+            for node_read in words_set[i]:
+                node_read_len = len(node_read)
+                con_index = i - node_read_len
+                for node_one in self.id_list(node_read):
+                    if con_index < 0:
+                        cost_tmp = self.score(self.id_list("@S@")[0], node_one)
+                    else:
+                        score_tmp = self.score(min_node[con_index]["id"], node_one)
+                        cost_tmp = min_node[con_index]["cost"] + score_tmp
 
-                for same_word in self.id_list(node_min):
-                    same_word_min_cost = 0
-                    # print(str(word_id) + ": " + self.words[word_id][0])
-                    score = self.score(pre_word_id, same_word)
-                    if score < same_word_min_cost or same_word_min_cost == 0:
-                        same_word_min_id = same_word
-                        same_word_min_cost = score
-                        same_word_min_str = self.words[same_word][0]
+                    if cost_tmp < min_node[i]["cost"] or min_node[i]["cost"] == 0.:
+                        min_node[i]["cost"] = cost_tmp
+                        min_node[i]["id"] = node_one
+                        min_node[i]["con_idx"] = con_index
 
-                    print(same_word_min_str)
-                pre_word_id = same_word_min_id
+        node_idx_ary = []
+        node_idx = len(words_set) - 1
+        for i in range(len(words_set)):
+            node_idx_ary.append(node_idx)
+            node_idx = min_node[node_idx]["con_idx"]
+            if node_idx < 0:
+                node_idx_ary.reverse()
+                break
 
-        # a = self.score("私", "の")
-        # print(a)
+        ret_str = ""
+        for i in node_idx_ary:
+            ret_str += self.words[min_node[i]["id"]][0]
+        return ret_str
 
     def score(self, word1_id, word2_id):
         # 係り受け解析部 ※未実装
@@ -116,12 +115,12 @@ class Converter:
 def main():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument('-m', nargs='?', help='output directory name', required=True)
-    arg_parser.add_argument('-s1', nargs='?', help='pre', required=True)
-    arg_parser.add_argument('-s2', nargs='?', help='post', required=True)
+    arg_parser.add_argument('-t', nargs='?', help='pre', required=True)
     args = arg_parser.parse_args()
 
     converter = Converter(args.m)
-    converter(args.s1, args.s2)
+    ret = converter(args.t)
+    print(ret)
 
 
 if __name__ == "__main__":
