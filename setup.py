@@ -4,6 +4,7 @@ setup(
     name='EgoisticLily',
     version='0.0.1',
     packages=['egoisticlily', 'egoisticlily.modelmaker'],
+    install_requires=["tensorflow>=2.0", "numpy", "marisa-trie"],
     url='',
     license='MIT',
     author='Hashimoto Masahiko',
