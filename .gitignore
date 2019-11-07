@@ -108,6 +108,9 @@ sample/
 mecab-jumandic/words.csv
 mecab-jumandic/words.marisa
 mecab-jumandic/csv_files/*.csv
+train/
 
 # PyCharm
 .idea/
+
+

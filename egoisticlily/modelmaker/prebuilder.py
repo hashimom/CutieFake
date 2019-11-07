@@ -58,7 +58,7 @@ class PreBuilder:
 
                     # Link info
                     for chunk in info["Chunks"]:
-                        if len(chunk["Independent"]) != 0 and not chunk["Link"] is None:
+                        if len(chunk["Independent"]) == 1 and not chunk["Link"] is None:
                             link_info.update(self.make_link_info(chunk))
 
                     for chunk in info["Chunks"]:
@@ -68,7 +68,7 @@ class PreBuilder:
                         for link in word_info:
                             writer.writerow(link)
 
-        self.word_holder.save(self.out_dir + "/words.csv")
+        self.word_holder.save(self.out_dir)
 
     @staticmethod
     def make_word_info(chunk, link_info):

@@ -54,7 +54,7 @@ def main():
     arg_parser.add_argument('-o', nargs='?', help='output directory', required=True)
     args = arg_parser.parse_args()
 
-    reader =  MecabDicReader(args.i, args.o)
+    reader = MecabDicReader(args.i, args.o)
     reader()
 
 
