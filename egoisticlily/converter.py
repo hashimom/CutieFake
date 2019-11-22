@@ -71,11 +71,13 @@ class Converter:
                     else:
                         score_tmp = self.score(min_node[con_index]["id"], node_one)
                         cost_tmp = min_node[con_index]["cost"] + score_tmp
+                    print("[%d]    %s: %f" % (i, self.words[node_one], cost_tmp))
 
                     if cost_tmp < min_node[i]["cost"] or min_node[i]["cost"] == 0.:
                         min_node[i]["cost"] = cost_tmp
                         min_node[i]["id"] = node_one
                         min_node[i]["con_idx"] = con_index
+                        print("[%d] -> %s: %f" % (i, self.words[node_one], cost_tmp))
 
         node_idx_ary = []
         node_idx = len(words_set) - 1
