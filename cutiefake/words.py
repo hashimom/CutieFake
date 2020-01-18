@@ -96,8 +96,8 @@ class Words:
             ]
         ]
 
-        self.type1_one_hot = np.eye(len(self.word_type_list[0]))
-        self.type2_one_hot = np.eye(len(self.word_type_list[1]))
+        self.type1_one_hot = np.eye(len(self.word_type_list[0]), dtype="float32")
+        self.type2_one_hot = np.eye(len(self.word_type_list[1]), dtype="float32")
         self.vec_id_bit_num = 16
 
     def __call__(self, vec_id, type1, type2):
@@ -110,7 +110,7 @@ class Words:
                 id_ary.append(0.)
             tmp = tmp >> 1
 
-        ret_ary = np.array(id_ary, dtype="float")
+        ret_ary = np.array(id_ary, dtype="float32")
         ret_ary = np.hstack((ret_ary, self.type1_one_hot[int(type1)]))
         ret_ary = np.hstack((ret_ary, self.type2_one_hot[int(type2)]))
         return ret_ary

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
- Copyright (c) 2018-2019 Masahiko Hashimoto <hashimom@geeko.jp>
+ Copyright (c) 2019-2020 Masahiko Hashimoto <hashimom@geeko.jp>
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -25,22 +25,35 @@ import os
 import json
 import csv
 import glob
-from cutiefake.modelmaker.wordholder import WordHolder
+from egoisticlily.modelmaker.wordholder import WordHolder
 
 
 class PreBuilder:
     def __init__(self, in_dir, out_dir):
+        """ モデルビルド用CSVファイル作成（pre処理）
+
+        :param in_dir:
+        :param out_dir:
+        """
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
         self.out_dir = out_dir
         self.in_dir = in_dir
-        self.word_holder = WordHolder()
+
+        if os.path.isfile(out_dir + "/words.csv"):
+            self.word_holder = WordHolder(out_dir + "/words.csv")
+        else:
+            self.word_holder = WordHolder()
         type_cnt = self.word_holder.type_list_cnt()
         self.soc_type = type_cnt
         self.eoc_type = [type_cnt[0], type_cnt[1]+1]
         self.non_type = [type_cnt[0], type_cnt[1]+2]
 
     def __call__(self):
+        """ モデルビルド用CSVファイル作成
+
+        :return:
+        """
         with open(self.out_dir + "/word_link.csv", 'w', encoding="utf-8") as f:
             writer = csv.writer(f, lineterminator='\n')
             file_list = glob.glob(self.in_dir + "/*.json")
@@ -72,6 +85,12 @@ class PreBuilder:
 
     @staticmethod
     def make_word_info(chunk, link_info):
+        """ bi-gram情報生成
+
+        :param chunk:
+        :param link_info:
+        :return:
+        """
         bigram_list = []
         word_info_list = []
         words = chunk["Independent"] + chunk["Ancillary"]
@@ -103,6 +122,11 @@ class PreBuilder:
         return word_info_list
 
     def make_link_info(self, chunk):
+        """ 係り受け情報生成
+
+        :param chunk:
+        :return:
+        """
         ind_phase = ""
         ind_read = ""
         lnk_phase = ""

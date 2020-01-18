@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
- Copyright (c) 2018-2019 Masahiko Hashimoto <hashimom@geeko.jp>
+ Copyright (c) 2019-2020 Masahiko Hashimoto <hashimom@geeko.jp>
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -24,9 +24,11 @@ import csv
 import argparse
 import os
 import numpy as np
-import tensorflow as tf
-from cutiefake.modelmaker.wordvector import WordVector
-from cutiefake.modelmaker.wordholder import WordHolder
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from egoisticlily.modelmaker.wordvector import CostAeModel
+from egoisticlily.modelmaker.wordholder import WordHolder
 
 WORD_PHRASE_NUM = 4
 WORD_ID_BIT_NUM = 16
@@ -34,11 +36,18 @@ WORD_ID_BIT_NUM = 16
 
 class Builder:
     def __init__(self, word_file, link_file, output_dir):
+        """ モデル生成
+
+        :param word_file:
+        :param link_file:
+        :param output_dir:
+        """
         # DNN define
         hid_dim = 64
         z_dim = 16
         hid_num = 1
 
+        # モデル生成用辞書ファイル読み込み
         self.word_holder = WordHolder(word_file)
         type1_cnt, type2_cnt = self.word_holder.type_list_cnt()
         self.link_list = []
@@ -47,39 +56,61 @@ class Builder:
             for row in reader:
                 self.link_list.append(row)
 
+        # モデル配置ディレクトリ生成
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
         self.out_dir = output_dir
 
-        self.model = WordVector(hid_dim, z_dim, hid_num, WORD_ID_BIT_NUM, type1_cnt, type2_cnt, WORD_PHRASE_NUM)
-        self.optimizer = tf.optimizers.Adam()
+        self.model = CostAeModel(type1_cnt, type2_cnt, hid_dim, z_dim, hid_num, WORD_ID_BIT_NUM, WORD_PHRASE_NUM)
 
     def __call__(self, epoch_num, batch_size):
+        """ 学習実行
+
+        :param epoch_num:
+        :param batch_size:
+        :return:
+        """
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+
+        # 学習開始
+        self.model.train()
         for i in range(epoch_num):
-            batch_list = self.make_batch_list(batch_size)
+            # バッチリスト生成 ※ゆくゆくはデータセットへ移行する予定
+            batch_list = []
+            rand_list = np.random.randint(0, len(self.link_list), batch_size)
+            for rand_i in rand_list:
+                batch_list.append(self.link_list[rand_i])
             batch = self.make_batch(batch_list, batch_size)
-            with tf.GradientTape() as tape:
-                score, y = self.model.score(batch)
-            grads = tape.gradient(score, self.model.trainable_variables)
-            self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
-            print(str(i + 1) + ":  score= " + str(score))
+            x_list = torch.from_numpy(batch)
 
+            # 学習データを入力して損失値を取得
+            y = self.model(x_list)
+            loss = criterion(y, x_list)
+
+            # 勾配を初期化してBackProp
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            print("[%d] loss: %f" % (i, loss))
+
+            # １エポック毎に単語ベクトルを更新している
             self.update_word_id(batch_list, y)
+
         self.word_holder.save(self.out_dir)
-
-        tf.saved_model.save(self.model, self.out_dir + "/dnn/")
-
-    def make_batch_list(self, batch_size):
-        batch_list = []
-        rand_list = np.random.randint(0, len(self.link_list), batch_size)
-        for i in rand_list:
-            batch_list.append(self.link_list[i])
-        return batch_list
+        torch.save(self.model.state_dict(), self.out_dir + "/dnn.mdl")
 
     def make_batch(self, batch_list, batch_size):
-        batch = np.empty((batch_size, 320), dtype="float")
+        """　バッチ生成 ※将来的にデータセットへ移行する
+
+        :param batch_list:
+        :param batch_size:
+        :return:
+        """
+        # 4単語×80 = 320決め打ちになってしまってる ※後で直す
+        batch = np.empty((batch_size, 320), dtype="float32")
         for i, x in enumerate(batch_list):
-            word_id = np.empty((WORD_PHRASE_NUM, 80), dtype="float")
+            word_id = np.empty((WORD_PHRASE_NUM, 80), dtype="float32")
             for j in range(WORD_PHRASE_NUM):
                 if not x[j] in self.word_holder.word_list:
                     self.word_holder.regist(x[j], x[j], "未定義語", "その他")
@@ -88,12 +119,19 @@ class Builder:
         return batch
 
     def update_word_id(self, batch_list, y):
+        """ 係り受け表現から単語Vectorを求めそれを反映する
+
+        :param batch_list:
+        :param y:
+        :return:
+        """
         for i, link in enumerate(batch_list):
-            y_word_ary = np.reshape(y[i], (WORD_PHRASE_NUM, 80))
+            y_word_ary = torch.reshape(y[i], (WORD_PHRASE_NUM, 80))
             for j, word in enumerate(link):
                 new_id = 0
                 y_word = y_word_ary[j][:WORD_ID_BIT_NUM]
-                y_mean = tf.reduce_mean(y_word)
+                # この辺りいい加減・・・（ようは平均以上の値にたいしてフラグを立てている）
+                y_mean = torch.mean(y_word)
                 for val in y_word:
                     if val > y_mean:
                         new_id += 1

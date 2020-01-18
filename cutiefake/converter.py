@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
- Copyright (c) 2019 Masahiko Hashimoto <hashimom@geeko.jp>
+ Copyright (c) 2019-2020 Masahiko Hashimoto <hashimom@geeko.jp>
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -25,16 +25,23 @@ import csv
 import argparse
 import marisa_trie
 import numpy as np
-import tensorflow as tf
+import torch
+import torch.nn as nn
 from cutiefake.words import Words
+from cutiefake.modelmaker.wordvector import CostAeModel
 
 
 class Converter:
     def __init__(self, model_dir):
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        """ 変換モジュール
+
+        :param model_dir:
+        """
         self.words = []
         trie_keys = []
         trie_values = []
+        self.loss = nn.MSELoss()
+
         model_path = os.path.abspath(model_dir)
         with open(model_path + "/words.csv", "r") as f:
             reader = csv.reader(f, delimiter=",")
@@ -44,11 +51,17 @@ class Converter:
                 trie_values.append([i])
 
         self.trie = marisa_trie.RecordTrie("<I", zip(trie_keys, trie_values))
-        self.model = tf.saved_model.load(model_dir + "/dnn/")
-
         self.word_info = Words()
 
+        self.model = CostAeModel(len(self.word_info.word_type_list[0]), len(self.word_info.word_type_list[1]))
+        self.model.load_state_dict(torch.load(model_dir + "/dnn.mdl"))
+
     def __call__(self, in_text):
+        """ 変換
+
+        :param in_text:
+        :return:
+        """
         init_id = self.id_list("@S@")[0]
 
         # words_set build
@@ -94,22 +107,39 @@ class Converter:
         return ret_str
 
     def score(self, word1_id, word2_id):
+        """ スコア取得
+
+        :param word1_id:
+        :param word2_id:
+        :return:
+        """
         # 係り受け解析部 ※未実装
         non_id_vec = self.vector(self.id_list("@N@")[0])
         vec = np.vstack((non_id_vec, non_id_vec))
 
         vec = np.vstack((vec, self.vector(word1_id)))
         vec = np.vstack((vec, self.vector(word2_id)))
-        vec = vec.reshape(1, 320)
-        return self.model.score(vec)[0]
+        vec = torch.from_numpy(vec.reshape(1, 320))
+        y = self.model(vec)
+        return self.loss(y, vec)
 
     def id_list(self, word):
+        """ TrieIDリスト取得
+
+        :param word:
+        :return:
+        """
         ret = []
         for word_id in self.trie.get(word):
             ret.append(word_id[0])
         return ret
 
     def vector(self, word_id):
+        """ DNN用単語ベクトル取得
+
+        :param word_id:
+        :return:
+        """
         id_list = self.words[word_id]
         return self.word_info(id_list[1], id_list[2], id_list[3])
 

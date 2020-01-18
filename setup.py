@@ -3,11 +3,12 @@ from setuptools import setup
 setup(
     name='CutieFake',
     version='0.0.1',
-    packages=['cutiefake', 'cutiefake.modelmaker'],
+    packages=['cutiefake', 'cutiefake.modelmaker', 'cutiefake.proto'],
     install_requires=[
-        "tensorflow>=2.0.0",
+        "torch",
         "numpy",
-        "marisa-trie"
+        "marisa-trie",
+        "grpcio-tools"
     ],
     url='https://github.com/hashimom/CutieFake',
     license='MIT',
@@ -15,7 +16,7 @@ setup(
     author_email='hashimom@geeko.jp',
     entry_points={
         "console_scripts": [
-            "cutiefake = cutiefake.converter:main",
+            "cutiefake = cutiefake.server:main",
         ],
     },
     description=''
