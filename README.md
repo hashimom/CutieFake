@@ -1,11 +1,14 @@
-# EgoisticLily
+# CutieFake
+
+本リポジトリは、OSSかな漢字変換エンジン EgoisticLily のテスト開発版です。  
+Python版 EgoisticLily は下記にリポジトリがあります。  
+<https://github.com/E-Lily/EgoisticLilyPy>
 
 AutoEncoderモデルを採用したかな漢字変換エンジンです。  
+
+## IBus連携  
 iBus と連携させる ibus-egoisticlily はこちらにあります。  
 
-https://github.com/syutadeveloper/ibus-egoisticlily  
+<https://github.com/syutadeveloper/ibus-egoisticlily>  
 
-## 注意書き
-現状 TensorFlow2.0 を使用していますが、いずれ書き直す予定です。  
-本リポジトリには学習用コードのみを残し、変換エンジン部は別のリポジトリに移動させる予定です。  
 

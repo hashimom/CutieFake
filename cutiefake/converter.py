@@ -26,7 +26,7 @@ import argparse
 import marisa_trie
 import numpy as np
 import tensorflow as tf
-from egoisticlily.words import Words
+from cutiefake.words import Words
 
 
 class Converter:

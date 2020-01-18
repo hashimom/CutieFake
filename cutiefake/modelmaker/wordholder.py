@@ -23,7 +23,7 @@
 import csv
 import marisa_trie
 import numpy as np
-from egoisticlily.words import Words
+from cutiefake.words import Words
 
 
 class WordHolder:

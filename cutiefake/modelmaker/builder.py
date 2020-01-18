@@ -25,8 +25,8 @@ import argparse
 import os
 import numpy as np
 import tensorflow as tf
-from egoisticlily.modelmaker.wordvector import WordVector
-from egoisticlily.modelmaker.wordholder import WordHolder
+from cutiefake.modelmaker.wordvector import WordVector
+from cutiefake.modelmaker.wordholder import WordHolder
 
 WORD_PHRASE_NUM = 4
 WORD_ID_BIT_NUM = 16

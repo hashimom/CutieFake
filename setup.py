@@ -1,17 +1,21 @@
 from setuptools import setup
 
 setup(
-    name='EgoisticLily',
+    name='CutieFake',
     version='0.0.1',
-    packages=['egoisticlily', 'egoisticlily.modelmaker'],
-    install_requires=["tensorflow>=2.0.0", "numpy", "marisa-trie"],
-    url='',
+    packages=['cutiefake', 'cutiefake.modelmaker'],
+    install_requires=[
+        "tensorflow>=2.0.0",
+        "numpy",
+        "marisa-trie"
+    ],
+    url='https://github.com/hashimom/CutieFake',
     license='MIT',
     author='Hashimoto Masahiko',
     author_email='hashimom@geeko.jp',
     entry_points={
         "console_scripts": [
-            "egoisticlily = egoisticlily.converter:main",
+            "cutiefake = cutiefake.converter:main",
         ],
     },
     description=''

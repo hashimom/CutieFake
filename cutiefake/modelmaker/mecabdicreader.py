@@ -24,7 +24,7 @@ import os
 import csv
 import argparse
 import glob
-from egoisticlily.modelmaker.wordholder import WordHolder
+from cutiefake.modelmaker.wordholder import WordHolder
 
 
 class MecabDicReader:
