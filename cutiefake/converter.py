@@ -28,33 +28,46 @@ import numpy as np
 import torch
 import torch.nn as nn
 from cutiefake.words import Words
-from cutiefake.modelmaker.wordvector import CostAeModel
+from cutiefake.model import BertDecoder, ELilyModel
+
+
+BERT_EMB_DIM = 768
+COST_TMP_MAX = 99  # dummy
+ID_TMP_MAX = -1  # dummy
 
 
 class Converter:
-    def __init__(self, model_dir):
+    def __init__(self, model_path):
         """ 変換モジュール
 
-        :param model_dir:
+        :param model_path:
         """
         self.words = []
         trie_keys = []
         trie_values = []
         self.loss = nn.MSELoss()
 
-        model_path = os.path.abspath(model_dir)
+        model_path = os.path.abspath(model_path)
         with open(model_path + "/words.csv", "r") as f:
-            reader = csv.reader(f, delimiter=",")
+            reader = csv.reader(f, delimiter=",", doublequote=True, quotechar='"')
             for i, row in enumerate(reader):
-                self.words.append([row[0], int(row[2]), int(row[3]), int(row[4])])
+                # TrieのKeyには読み、Valueには単語ID（リストインデックス）を格納
                 trie_keys.append(row[1])
                 trie_values.append([i])
+                # 単語IDに対応したデータをリストへ格納
+                self.words.append({"w": row[0], "e": np.array([float(row[2])], dtype=np.float32)})
 
         self.trie = marisa_trie.RecordTrie("<I", zip(trie_keys, trie_values))
         self.word_info = Words()
 
-        self.model = CostAeModel(len(self.word_info.word_type_list[0]), len(self.word_info.word_type_list[1]))
-        self.model.load_state_dict(torch.load(model_dir + "/dnn.mdl"))
+        self.b_model = BertDecoder().to("cuda")
+        self.b_model.load_state_dict(torch.load(model_path + "/decoder.mdl"))
+        self.b_model.eval()
+
+        self.e_model = ELilyModel().to("cuda")
+        self.e_model.load_state_dict(torch.load(model_path + "/dnn.mdl"))
+        self.e_model.eval()
+        self.criterion = nn.MSELoss()
 
     def __call__(self, in_text):
         """ 変換
@@ -62,66 +75,69 @@ class Converter:
         :param in_text:
         :return:
         """
-        init_id = self.id_list("@S@")[0]
+        # 入力が一文字の場合は単漢字変換へ移行 ※未実装
+        in_len = len(in_text)
+        if in_len <= 1:
+            return in_text
 
-        # words_set build
-        words_set = [[] for i in range(len(in_text))]
-        for i in range(len(in_text)):
+        print("1:")
+        # 変換前のテキストを分解して終了位置ごとにリストでまとめる
+        nodes_set = [[] for _ in range(in_len)]
+        for i in range(in_len):
             for prefix in self.trie.prefixes(in_text[i:]):
-                words_set[i+len(prefix)-1].append(prefix)
+                nodes_set[i + len(prefix) - 1].append(prefix)
+        print(nodes_set)
 
-        # node build
-        min_node = []
-        for i in range(len(words_set)):
-            min_node.append({"cost": 0., "id": init_id, "con_idx": 0})
+        # ノード作成
+        connect_node = []
+        for i in range(len(nodes_set)):
+            min_cost = COST_TMP_MAX
+            min_words = []
 
-            for node_read in words_set[i]:
-                node_read_len = len(node_read)
-                con_index = i - node_read_len
-                for node_one in self.id_list(node_read):
-                    if con_index < 0:
-                        cost_tmp = self.score(self.id_list("@S@")[0], node_one)
-                    else:
-                        score_tmp = self.score(min_node[con_index]["id"], node_one)
-                        cost_tmp = min_node[con_index]["cost"] + score_tmp
-                    print("[%d]    %s: %f" % (i, self.words[node_one], cost_tmp))
+            for word in nodes_set[i]:
+                node_len = len(word)
+                connect_index = i - node_len
+                for word_id in self.id_list(word):
+                    words_tmp = [word_id]
+                    print_str = self.words[word_id]["w"]
 
-                    if cost_tmp < min_node[i]["cost"] or min_node[i]["cost"] == 0.:
-                        min_node[i]["cost"] = cost_tmp
-                        min_node[i]["id"] = node_one
-                        min_node[i]["con_idx"] = con_index
-                        print("[%d] -> %s: %f" % (i, self.words[node_one], cost_tmp))
+                    cost_tmp = self.score(words_tmp)
+                    if cost_tmp < min_cost:
+                        min_cost = cost_tmp
+                        min_words = words_tmp
+                        print("[%d] : cost %f / %s" % (i, min_cost, print_str))
 
-        node_idx_ary = []
-        node_idx = len(words_set) - 1
-        for i in range(len(words_set)):
-            node_idx_ary.append(node_idx)
-            node_idx = min_node[node_idx]["con_idx"]
-            if node_idx < 0:
-                node_idx_ary.reverse()
-                break
+                    if connect_index > 0:
+                        words_tmp = connect_node[connect_index]["words"] + [word_id]
+                        print_str = ""
+                        for wordid in words_tmp:
+                            print_str += self.words[wordid]["w"]
 
-        ret_str = ""
-        for i in node_idx_ary:
-            ret_str += self.words[min_node[i]["id"]][0]
-        return ret_str
+                        cost_tmp = self.score(words_tmp)
+                        if cost_tmp < min_cost:
+                            min_cost = cost_tmp
+                            min_words = words_tmp
+                            print("[%d] : cost %f / %s" % (i, min_cost, print_str))
 
-    def score(self, word1_id, word2_id):
+            connect_node.append({"cost": min_cost, "words": min_words})
+
+    def score(self, id_list):
         """ スコア取得
 
-        :param word1_id:
-        :param word2_id:
+        :param id_list:
         :return:
         """
-        # 係り受け解析部 ※未実装
-        non_id_vec = self.vector(self.id_list("@N@")[0])
-        vec = np.vstack((non_id_vec, non_id_vec))
-
-        vec = np.vstack((vec, self.vector(word1_id)))
-        vec = np.vstack((vec, self.vector(word2_id)))
-        vec = torch.from_numpy(vec.reshape(1, 320))
-        y = self.model(vec)
-        return self.loss(y, vec)
+        emb = np.zeros(1, dtype=np.float32)
+        emb_tmp = torch.zeros(768, device="cuda")
+        emb_zeros = torch.zeros(768, device="cuda")
+        for word_id in id_list:
+            x_in = torch.from_numpy(self.words[word_id]["e"]).to("cuda")
+            x_emb = self.b_model(x_in)
+            emb_tmp = torch.add(x_emb, emb_tmp)
+        x_emb = torch.cat([emb_tmp, emb_zeros])
+        y = self.e_model(x_emb)
+        score = self.criterion(y, x_emb)
+        return score
 
     def id_list(self, word):
         """ TrieIDリスト取得
@@ -146,12 +162,12 @@ class Converter:
 
 def main():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('-m', nargs='?', help='output directory name', required=True)
-    arg_parser.add_argument('-t', nargs='?', help='pre', required=True)
+    arg_parser.add_argument('-m', '--model_path', help='model path', required=True)
+    arg_parser.add_argument('-t', '--text', help='pre text', required=True)
     args = arg_parser.parse_args()
 
-    converter = Converter(args.m)
-    ret = converter(args.t)
+    converter = Converter(args.model_path)
+    ret = converter(args.text)
     print(ret)
 
 

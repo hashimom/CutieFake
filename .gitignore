@@ -103,12 +103,16 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# model
+model/Japanese_L-12_H-768_A-12_E-30_BPE_WWM/
+
 # sample data
 sample/
 mecab-jumandic/words.csv
 mecab-jumandic/words.marisa
 mecab-jumandic/csv_files/*.csv
 data/
+in/
 
 # PyCharm
 .idea/

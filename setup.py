@@ -7,7 +7,9 @@ setup(
     install_requires=[
         "torch",
         "numpy",
+        "tqdm",
         "marisa-trie",
+        "transformers",
         "grpcio-tools"
     ],
     url='https://github.com/hashimom/CutieFake',
