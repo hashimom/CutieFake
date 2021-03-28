@@ -1,17 +1,9 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
 setup(
     name='CutieFake',
     version='0.0.1',
-    packages=['cutiefake', 'cutiefake.modelmaker', 'cutiefake.proto'],
-    install_requires=[
-        "torch",
-        "numpy",
-        "tqdm",
-        "marisa-trie",
-        "transformers",
-        "grpcio-tools"
-    ],
+    packages=find_packages(),
     url='https://github.com/hashimom/CutieFake',
     license='MIT',
     author='Hashimoto Masahiko',

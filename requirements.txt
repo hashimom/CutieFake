@@ -1,0 +1,10 @@
+torch
+numpy
+jaconv
+tqdm
+pyknp
+marisa-trie
+grpcio
+protobuf
+sudachipy
+sudachidict_core
